@@ -13,4 +13,6 @@
     <string name="label_hp">HP</string>
     <string name="label_attack">Attack</string>
     <string name="label_defense">Defense</string>
+    <string name="button_reset">Reset</string>
+    <string name="button_save">Save</string>
 </resources>
