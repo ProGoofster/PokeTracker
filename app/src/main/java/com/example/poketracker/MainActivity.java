@@ -1,6 +1,10 @@
 package com.example.poketracker;
 
+import android.content.ContentValues;
+import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -23,11 +27,11 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.table_layout);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
+//        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+//            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+//            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+//            return insets;
+//        });
 
         setDefaultValues();
 
@@ -36,112 +40,139 @@ public class MainActivity extends AppCompatActivity {
 
         // Add submit button validation
         Button submitButton = findViewById(R.id.save_button);
-        submitButton.setOnClickListener(v -> validateForm());
+        submitButton.setOnClickListener(v -> validateAndSubmitForm());
+
+        Button viewPokedexButton = findViewById(R.id.view_pokedex_button); // Make sure you add this button to your layout
+        viewPokedexButton.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, PokedexListActivity.class);
+            startActivity(intent);
+        });
     }
 
-    private void validateForm() {
-        // Reset all label colors to black first
+    private void validateAndSubmitForm() {
         resetLabelColors();
 
-        boolean allValid = true;
-        StringBuilder errorMessage = new StringBuilder();
+        if (!validateForm()) {
+            // Validation failed, toast messages are shown within validateForm
+            return;
+        }
 
-        // Check if all fields are filled
+        ContentValues values = new ContentValues();
+        values.put(PokedexContentProvider.COL_NATNUM, ((EditText) findViewById(R.id.et_national_number)).getText().toString());
+        values.put(PokedexContentProvider.COL_NAME, ((EditText) findViewById(R.id.et_name)).getText().toString());
+        values.put(PokedexContentProvider.COL_SPECIES, ((EditText) findViewById(R.id.et_species)).getText().toString());
+        values.put(PokedexContentProvider.COL_HEIGHT, ((EditText) findViewById(R.id.et_height)).getText().toString());
+        values.put(PokedexContentProvider.COL_WEIGHT, ((EditText) findViewById(R.id.et_weight)).getText().toString());
+        values.put(PokedexContentProvider.COL_LEVEL, ((EditText) findViewById(R.id.et_level)).getText().toString());
+        values.put(PokedexContentProvider.COL_HP, ((EditText) findViewById(R.id.et_hp)).getText().toString());
+        values.put(PokedexContentProvider.COL_ATTACK, ((EditText) findViewById(R.id.et_attack)).getText().toString());
+        values.put(PokedexContentProvider.COL_DEFENSE, ((EditText) findViewById(R.id.et_defense)).getText().toString());
+
+        RadioGroup rgGender = findViewById(R.id.rg_gender);
+        RadioButton selectedRadioButton = findViewById(rgGender.getCheckedRadioButtonId());
+        values.put(PokedexContentProvider.COL_GENDER, selectedRadioButton.getText().toString());
+
+        // Requirement: Check for duplicates before inserting
+        if (isDuplicateEntry(values)) {
+            Toast.makeText(this, "This Pokémon entry already exists in the database.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        // Use ContentResolver to insert data via the ContentProvider
+        Uri newUri = getContentResolver().insert(PokedexContentProvider.CONTENT_URI, values);
+
+        if (newUri != null) {
+            Toast.makeText(this, "Form submitted successfully! Information stored in database.", Toast.LENGTH_SHORT).show();
+            setDefaultValues(); // Clear form on success
+        } else {
+            Toast.makeText(this, "Error: Failed to save data.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private boolean isDuplicateEntry(ContentValues values) {
+        String selection = PokedexContentProvider.COL_NATNUM + " = ? AND " +
+                PokedexContentProvider.COL_NAME + " = ? AND " +
+                PokedexContentProvider.COL_SPECIES + " = ?";
+        String[] selectionArgs = {
+                values.getAsString(PokedexContentProvider.COL_NATNUM),
+                values.getAsString(PokedexContentProvider.COL_NAME),
+                values.getAsString(PokedexContentProvider.COL_SPECIES)
+        };
+
+        Cursor cursor = getContentResolver().query(PokedexContentProvider.CONTENT_URI, null, selection, selectionArgs, null);
+
+        boolean exists = (cursor != null && cursor.getCount() > 0);
+        if (cursor != null) {
+            cursor.close();
+        }
+        return exists;
+    }
+
+    // Combines validation logic into one method that returns a boolean
+    private boolean validateForm() {
+        boolean allValid = true;
+        StringBuilder errorMessage = new StringBuilder("Please fix the following errors:\n");
+
         if (!areAllFieldsFilled()) {
-            errorMessage.append("All fields must be filled\n");
+            errorMessage.append("- All fields must be filled\n");
             allValid = false;
             highlightEmptyFields();
         }
-
-        // Validate Name
         if (!isNameValid()) {
-            errorMessage.append("Name must be 3-12 alphabetical characters\n");
+            errorMessage.append("- Name must be 3-12 alphabetical characters\n");
             allValid = false;
-            TextView nameLabel = findViewById(R.id.tv_name_label);
-            nameLabel.setTextColor(Color.RED);
+            ((TextView) findViewById(R.id.tv_name_label)).setTextColor(Color.RED);
         }
-
-        // Validate Gender
         if (!isGenderValid()) {
-            errorMessage.append("Please select a valid gender (Male/Female)\n");
+            errorMessage.append("- Please select a valid gender\n");
             allValid = false;
-            TextView genderLabel = findViewById(R.id.tv_gender_label);
-            genderLabel.setTextColor(Color.RED);
+            ((TextView) findViewById(R.id.tv_gender_label)).setTextColor(Color.RED);
         }
-
-        // Validate National Number
         if (!isNationalNumberValid()) {
-            errorMessage.append("National number must be a positive number\n");
+            errorMessage.append("- National number must be a positive number\n");
             allValid = false;
-            TextView nationalNumberLabel = findViewById(R.id.tv_national_number_label);
-            nationalNumberLabel.setTextColor(Color.RED);
+            ((TextView) findViewById(R.id.tv_national_number_label)).setTextColor(Color.RED);
         }
-
-        // Validate Species
         if (!isSpeciesValid()) {
-            errorMessage.append("Species must not be empty\n");
+            errorMessage.append("- Species must not be empty\n");
             allValid = false;
-            TextView speciesLabel = findViewById(R.id.tv_species_label);
-            speciesLabel.setTextColor(Color.RED);
+            ((TextView) findViewById(R.id.tv_species_label)).setTextColor(Color.RED);
         }
-
-        // Validate Height
         if (!isHeightValid()) {
-            errorMessage.append("Height must be between 0.2 and 169.99\n");
+            errorMessage.append("- Height must be between 0.2 and 169.99\n");
             allValid = false;
-            TextView heightLabel = findViewById(R.id.tv_height_label);
-            heightLabel.setTextColor(Color.RED);
+            ((TextView) findViewById(R.id.tv_height_label)).setTextColor(Color.RED);
         }
-
-        // Validate Weight
         if (!isWeightValid()) {
-            errorMessage.append("Weight must be between 0.1 and 992.7\n");
+            errorMessage.append("- Weight must be between 0.1 and 992.7\n");
             allValid = false;
-            TextView weightLabel = findViewById(R.id.tv_weight_label);
-            weightLabel.setTextColor(Color.RED);
+            ((TextView) findViewById(R.id.tv_weight_label)).setTextColor(Color.RED);
         }
-
-        // Validate Level
         if (!isLevelValid()) {
-            errorMessage.append("Level must be a positive number\n");
+            errorMessage.append("- Level must be a positive number\n");
             allValid = false;
-            TextView levelLabel = findViewById(R.id.tv_level_label);
-            levelLabel.setTextColor(Color.RED);
+            ((TextView) findViewById(R.id.tv_level_label)).setTextColor(Color.RED);
         }
-
-        // Validate HP
         if (!isHpValid()) {
-            errorMessage.append("HP must be between 1 and 362\n");
+            errorMessage.append("- HP must be between 1 and 362\n");
             allValid = false;
-            TextView hpLabel = findViewById(R.id.tv_hp_label);
-            hpLabel.setTextColor(Color.RED);
+            ((TextView) findViewById(R.id.tv_hp_label)).setTextColor(Color.RED);
         }
-
-        // Validate Attack
         if (!isAttackValid()) {
-            errorMessage.append("Attack must be between 0 and 526\n");
+            errorMessage.append("- Attack must be between 0 and 526\n");
             allValid = false;
-            TextView attackLabel = findViewById(R.id.tv_attack_label);
-            attackLabel.setTextColor(Color.RED);
+            ((TextView) findViewById(R.id.tv_attack_label)).setTextColor(Color.RED);
         }
-
-        // Validate Defense
         if (!isDefenseValid()) {
-            errorMessage.append("Defense must be between 10 and 614\n");
+            errorMessage.append("- Defense must be between 10 and 614\n");
             allValid = false;
-            TextView defenseLabel = findViewById(R.id.tv_defense_label);
-            defenseLabel.setTextColor(Color.RED);
+            ((TextView) findViewById(R.id.tv_defense_label)).setTextColor(Color.RED);
         }
 
-        if (allValid) {
-            Toast.makeText(this, "Form submitted successfully! Information stored in database.", Toast.LENGTH_SHORT).show();
-        } else {
-            // Remove the last newline character if it exists
-            if (errorMessage.length() > 0 && errorMessage.charAt(errorMessage.length() - 1) == '\n') {
-                errorMessage.setLength(errorMessage.length() - 1);
-            }
-            Toast.makeText(this, errorMessage.toString(), Toast.LENGTH_LONG).show();
+        if (!allValid) {
+            Toast.makeText(this, errorMessage.toString().trim(), Toast.LENGTH_LONG).show();
         }
+        return allValid;
     }
 
     private void resetLabelColors() {

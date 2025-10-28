@@ -92,7 +92,7 @@ public class PokedexContentProvider extends ContentProvider {
     @Override
     public boolean onCreate() {
         mHelper = new MainDatabaseHelper(getContext());
-        return false;
+        return true;
     }
 
     @Nullable

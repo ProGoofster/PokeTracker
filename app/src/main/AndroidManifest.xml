@@ -13,7 +13,7 @@
         android:theme="@style/Theme.PokeTracker">
         <provider
             android:name=".PokedexContentProvider"
-            android:authorities="com.example.tasktrackerdv.provider"
+            android:authorities="com.example.poketracker.provider"
             android:enabled="true"
             android:exported="true"></provider>
 
@@ -26,6 +26,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".PokedexListActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
