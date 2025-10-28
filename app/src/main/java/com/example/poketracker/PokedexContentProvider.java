@@ -63,7 +63,7 @@ public class PokedexContentProvider extends ContentProvider {
 
     @Override
     public int delete(@NonNull Uri uri, @Nullable String selection, @Nullable String[] selectionArgs) {
-        throw new UnsupportedOperationException("Not yet implemented");
+        return mHelper.getWritableDatabase().delete(TABLE_NAME, selection, selectionArgs);
     }
 
     @Nullable
