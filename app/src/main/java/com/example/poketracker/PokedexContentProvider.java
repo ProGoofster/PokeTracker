@@ -85,7 +85,6 @@ public class PokedexContentProvider extends ContentProvider {
         String hp = values.getAsString(COL_HP);
         String attack = values.getAsString(COL_ATTACK);
         String defense = values.getAsString(COL_DEFENSE);
-        mHelper.getWritableDatabase().insert(TABLE_NAME, null, values);
         long id = mHelper.getWritableDatabase().insert(TABLE_NAME, null, values);
         return uri.withAppendedPath(uri, id + "");
     }
